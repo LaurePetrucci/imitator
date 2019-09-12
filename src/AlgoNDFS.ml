@@ -125,6 +125,8 @@ class algoNDFS =
 		(* variable for the synthesis results *)
 		(**************************************)
 		let constraint_list = ref [] in (* list of results found *)
+		let collected_constr = ref (LinearConstraint.false_p_nnconvex_constraint()) in
+
 
 		(***********************)
 		(* printing the queues *)
@@ -236,9 +238,9 @@ class algoNDFS =
 				LinearConstraint.px_hide_nonparameters_and_collapse astate.px_constraint in
 			let astate_constr =
 				LinearConstraint.p_nnconvex_constraint_of_p_linear_constraint linear_aconstr in
-			let found_constr =
+(* 			let found_constr =
 				LinearConstraint.p_nnconvex_constraint_of_p_linear_constraints !constraint_list in
-			if (LinearConstraint.p_nnconvex_constraint_is_leq astate_constr found_constr) then (
+ *)			if (LinearConstraint.p_nnconvex_constraint_is_leq astate_constr !collected_constr) then (
 				print_highlighted_message Shell_bold Verbose_medium("Pruning with inclusion in collected constraints");
 				true
 			) else false
@@ -458,7 +460,6 @@ class algoNDFS =
 			(*** NOTE (ÉA, 2019/08/21: synthesis or emptiness?!! ***)
 			| Exploration_NDFS -> 
 (* Classical NDFS exploration *)
-				print_message Verbose_standard("Using the option NDFS");
 				(* set up the dfs blue calls *)
 				let enterdfs (astate : State.state_index) : bool =
 					true in
@@ -538,7 +539,6 @@ class algoNDFS =
 			(* Subsumption + emptiness *)
 			| Exploration_NDFS_sub when options#counterex = true ->
 (* NDFS with subsumption *)
-				print_message Verbose_standard("Using the option NDFSsub");
 				(* set up the dfs blue calls *)
 				let enterdfs (astate : State.state_index) : bool =
 					true in
@@ -620,7 +620,6 @@ class algoNDFS =
 			(* Layer + emptiness *)
 			| Exploration_layer_NDFS_sub when options#counterex = true ->
 (* NDFS with subsumption and layers *)
-				print_message Verbose_standard("Using the option layerNDFSsub");
 				(* set up the dfs blue calls *)
 				add_pending init_state_index 0;
 				(try (while !pending != [] do
@@ -718,7 +717,6 @@ class algoNDFS =
 			(* Subsumption + synthesis *)
 			| (*Exploration_syn_NDFS_sub*)Exploration_NDFS_sub when options#counterex = false ->
 (* collecting NDFS with subsumption *)
-				print_message Verbose_standard("Using the option synNDFSsub");
 				(* set up the dfs blue calls *)
 				let enterdfs (astate : State.state_index) : bool =
 					if (check_parameter_leq_list astate) then (
@@ -749,6 +747,7 @@ class algoNDFS =
 					print_projection Verbose_standard astate;
 					let state_constr = (StateSpace.get_state state_space astate).px_constraint in
 					constraint_list := (LinearConstraint.px_hide_nonparameters_and_collapse state_constr)::(!constraint_list);
+					collected_constr :=	LinearConstraint.p_nnconvex_constraint_of_p_linear_constraints !constraint_list;
 					if withinitprune () then raise TerminateAnalysis;
 					(* the state where the lookahead has found a cycle is now set blue *)
 					blue := astate::(!blue);
@@ -793,6 +792,7 @@ class algoNDFS =
 							print_projection Verbose_standard astate;
 							let state_constr = (StateSpace.get_state state_space astate).px_constraint in
 							constraint_list := (LinearConstraint.px_hide_nonparameters_and_collapse state_constr)::(!constraint_list);
+							collected_constr :=	LinearConstraint.p_nnconvex_constraint_of_p_linear_constraints !constraint_list;
 							if withinitprune () then raise TerminateAnalysis;
 						in
 						let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
@@ -824,7 +824,6 @@ class algoNDFS =
 			(* Layer + synthesis *)
 			| (*Exploration_syn_layer_NDFS_sub*)Exploration_layer_NDFS_sub when options#counterex = false ->
 (* collecting NDFS with layers and subsumption *)
-				print_message Verbose_standard("Using the option synlayerNDFSsub");
 				(* set up the dfs blue calls *)
 				add_pending init_state_index 0;
 				(try (while !pending != [] do
@@ -866,6 +865,7 @@ class algoNDFS =
 							print_projection Verbose_standard astate;
 							let state_constr = (StateSpace.get_state state_space astate).px_constraint in
 							constraint_list := (LinearConstraint.px_hide_nonparameters_and_collapse state_constr)::(!constraint_list);
+							collected_constr :=	LinearConstraint.p_nnconvex_constraint_of_p_linear_constraints !constraint_list;
 							if withinitprune () then raise TerminateAnalysis;
 							(* the state where the lookahead has found a cycle is now set blue *)
 							blue := astate::(!blue);
@@ -911,6 +911,7 @@ class algoNDFS =
 									print_projection Verbose_standard astate;
 									let state_constr = (StateSpace.get_state state_space astate).px_constraint in
 									constraint_list := (LinearConstraint.px_hide_nonparameters_and_collapse state_constr)::(!constraint_list);
+									collected_constr :=	LinearConstraint.p_nnconvex_constraint_of_p_linear_constraints !constraint_list;
 									if withinitprune () then raise TerminateAnalysis;
 								in
 								let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
@@ -949,7 +950,8 @@ class algoNDFS =
 		end;
 
 		(* combine the linear constraints *)
-		constraint_valuations <- Some (LinearConstraint.p_nnconvex_constraint_of_p_linear_constraints !constraint_list);
+		(* constraint_valuations <- Some (LinearConstraint.p_nnconvex_constraint_of_p_linear_constraints !constraint_list); *)
+		constraint_valuations <- Some !collected_constr;
 
 		print_message Verbose_standard("---------------- Ending exploration ------------------");
 
