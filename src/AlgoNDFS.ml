@@ -338,14 +338,15 @@ class algoNDFS =
 		(**************************)
 		(* Function for initprune *)
 		(**************************)
-		let withinitprune = 
+		let withinitprune () = 
 			if not options#no_initprune then (
+				print_highlighted_message Shell_bold Verbose_high("Testing inclusion of initial state");
 				let init_state = StateSpace.get_state state_space init_state_index in
 				let linear_init_constr = LinearConstraint.px_hide_nonparameters_and_collapse init_state.px_constraint in
 				let init_constr = LinearConstraint.p_nnconvex_constraint_of_p_linear_constraint linear_init_constr in
 				let found_constr = LinearConstraint.p_nnconvex_constraint_of_p_linear_constraints !constraint_list in
 				if (LinearConstraint.p_nnconvex_constraint_is_leq init_constr found_constr) then (
-					print_highlighted_message Shell_bold Verbose_low("Pruning with inclusion of initial state");
+					print_highlighted_message Shell_bold Verbose_standard("Pruning with inclusion of initial state");
 					true
 				) else false
 			) else false
@@ -728,7 +729,7 @@ class algoNDFS =
 					print_projection Verbose_standard astate;
 					let state_constr = (StateSpace.get_state state_space astate).px_constraint in
 					constraint_list := (LinearConstraint.px_hide_nonparameters_and_collapse state_constr)::(!constraint_list);
-					if withinitprune then raise TerminateAnalysis;
+					if withinitprune () then raise TerminateAnalysis;
 					(* the state where the lookahead has found a cycle is now set blue *)
 					blue := astate::(!blue);
 					printqueue "Blue" !blue;
@@ -772,7 +773,7 @@ class algoNDFS =
 							print_projection Verbose_standard astate;
 							let state_constr = (StateSpace.get_state state_space astate).px_constraint in
 							constraint_list := (LinearConstraint.px_hide_nonparameters_and_collapse state_constr)::(!constraint_list);
-							if withinitprune then raise TerminateAnalysis;
+							if withinitprune () then raise TerminateAnalysis;
 						in
 						let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
 							if (same_parameter_projection thestate astate) then true
@@ -844,7 +845,7 @@ class algoNDFS =
 							print_projection Verbose_standard astate;
 							let state_constr = (StateSpace.get_state state_space astate).px_constraint in
 							constraint_list := (LinearConstraint.px_hide_nonparameters_and_collapse state_constr)::(!constraint_list);
-							if withinitprune then raise TerminateAnalysis;
+							if withinitprune () then raise TerminateAnalysis;
 							(* the state where the lookahead has found a cycle is now set blue *)
 							blue := astate::(!blue);
 							printqueue "Blue" !blue;
@@ -889,7 +890,7 @@ class algoNDFS =
 									print_projection Verbose_standard astate;
 									let state_constr = (StateSpace.get_state state_space astate).px_constraint in
 									constraint_list := (LinearConstraint.px_hide_nonparameters_and_collapse state_constr)::(!constraint_list);
-									if withinitprune then raise TerminateAnalysis;
+									if withinitprune () then raise TerminateAnalysis;
 								in
 								let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
 									if (same_parameter_projection thestate astate) then true
