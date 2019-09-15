@@ -8,7 +8,7 @@
  * 
  * File contributors : Laure Petrucci, Étienne André
  * Created           : 2019/03/12
- * Last modified     : 2019/08/21
+ * Last modified     : 2019/09/13
  *
  ************************************************************)
 
@@ -481,6 +481,7 @@ class algoNDFS =
 					let state_constr = (StateSpace.get_state state_space astate).px_constraint in
 					constraint_list := [LinearConstraint.px_hide_nonparameters_and_collapse state_constr];
 					collected_constr :=	LinearConstraint.p_nnconvex_constraint_of_p_linear_constraints !constraint_list;
+					cyclecount <- cyclecount + 1;
 					raise TerminateAnalysis
 				in
 				let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
@@ -511,6 +512,7 @@ class algoNDFS =
 							let state_constr = (StateSpace.get_state state_space astate).px_constraint in
 							constraint_list := [LinearConstraint.px_hide_nonparameters_and_collapse state_constr];
 							collected_constr :=	LinearConstraint.p_nnconvex_constraint_of_p_linear_constraints !constraint_list;
+							cyclecount <- cyclecount + 1;
 							raise TerminateAnalysis
 						in
 						let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
@@ -562,6 +564,7 @@ class algoNDFS =
 					let state_constr = (StateSpace.get_state state_space astate).px_constraint in
 					constraint_list := [LinearConstraint.px_hide_nonparameters_and_collapse state_constr];
 					collected_constr :=	LinearConstraint.p_nnconvex_constraint_of_p_linear_constraints !constraint_list;
+					cyclecount <- cyclecount + 1;
 					raise TerminateAnalysis
 				in
 				let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
@@ -593,6 +596,7 @@ class algoNDFS =
 							let state_constr = (StateSpace.get_state state_space astate).px_constraint in
 							constraint_list := [LinearConstraint.px_hide_nonparameters_and_collapse state_constr];
 							collected_constr :=	LinearConstraint.p_nnconvex_constraint_of_p_linear_constraints !constraint_list;
+							cyclecount <- cyclecount + 1;
 							raise TerminateAnalysis
 						in
 						let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
@@ -656,6 +660,7 @@ class algoNDFS =
 							let state_constr = astate.px_constraint in
 							constraint_list := [LinearConstraint.px_hide_nonparameters_and_collapse state_constr];
 							collected_constr :=	LinearConstraint.p_nnconvex_constraint_of_p_linear_constraints !constraint_list;
+							cyclecount <- cyclecount + 1;
 							raise TerminateAnalysis
 						in
 						let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
@@ -688,6 +693,7 @@ class algoNDFS =
 									let state_constr = (StateSpace.get_state state_space astate).px_constraint in
 									constraint_list := [LinearConstraint.px_hide_nonparameters_and_collapse state_constr];
 									collected_constr :=	LinearConstraint.p_nnconvex_constraint_of_p_linear_constraints !constraint_list;									
+									cyclecount <- cyclecount + 1;
 									raise TerminateAnalysis
 								in
 								let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
