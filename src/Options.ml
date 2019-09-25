@@ -184,7 +184,7 @@ class imitator_options =
 		val mutable no_lookahead = ref false
 		
 		(* do not order the pending list with bigger zones first in NDFS synthesis *)
-		val mutable no_pending_ordered = ref false
+(* 		val mutable no_pending_ordered = ref false *)
 
 		(* do not use random values *)
 		val mutable no_random = ref false
@@ -194,6 +194,9 @@ class imitator_options =
 		
 		(* No automatic removal of variables declared but never used *)
 		val mutable no_variable_autoremove = ref false
+
+		(* Pending list exploration order *)
+		val mutable pending_order = Pending_none
 
 		(* Returns contraint K ("algo IMK") *)
 		val mutable pi_compatible = ref false 
@@ -218,7 +221,6 @@ class imitator_options =
 		
 		(* Step for the cartography *)
 		val mutable step = ref NumConst.one
-
 		
 		
 		(* TRANSLATION *)
@@ -297,7 +299,7 @@ class imitator_options =
 (* 		method no_initprune = !no_initprune *)
 		method no_leq_test_in_ef = no_leq_test_in_ef
 		method no_lookahead = !no_lookahead
-		method no_pending_ordered = !no_pending_ordered
+(* 		method no_pending_ordered = !no_pending_ordered *)
 		method no_time_elapsing = !no_time_elapsing
 		method no_random = !no_random
 		method no_variable_autoremove = !no_variable_autoremove
@@ -310,6 +312,7 @@ class imitator_options =
 		method output_float = !output_float
 		method output_result = !output_result
 		method output_tiles_files = !output_tiles_files
+		method pending_order = pending_order
 		method pi_compatible = !pi_compatible
 		method precomputepi0 = !precomputepi0
 (* 		method pta2clp = !pta2clp *)
@@ -604,6 +607,25 @@ class imitator_options =
 					exit(1);
 				)
 
+			and set_pending_order order =
+				(*  *)
+				if order = "none" then
+					pending_order <- Pending_none
+				else if order = "param" then
+					pending_order <- Pending_param
+				else if order = "accepting" then
+					pending_order <- Pending_accept
+				else if order = "zone" then
+					pending_order <- Pending_zone
+				else(
+					(*** HACK: print header now ***)
+					print_header_string();
+					print_error ("The exploration order '" ^ order ^ "' is not valid.");
+					Arg.usage speclist usage_msg;
+					abort_program ();
+					exit(1);
+				)
+
 			and set_merge_heuristic heuristic =
 				(*  *)
 				if heuristic = "always" then
@@ -800,7 +822,7 @@ class imitator_options =
 
 				("-no-lookahead", Set no_lookahead, " In NDFS, no lookahead for finding successors closing an accepting cycle. Default: false.");
 
-				("-no-pending-ordered", Set no_pending_ordered, " In NDFS synthesis, do not order the pending queue with larger zones first. Default: false.");
+(* 				("-no-pending-ordered", Set no_pending_ordered, " In NDFS synthesis, do not order the pending queue with larger zones first. Default: false."); *)
 
 				("-no-random", Set no_random, " In IM, no random selection of the pi0-incompatible inequality (select the first found). Default: false.");
 
@@ -897,6 +919,14 @@ class imitator_options =
 					print_string ("GitHub branch and hash: " ^ ImitatorUtilities.git_branch_and_full_hash);
 					print_newline();
 					exit 0), " Print version number and exit.");
+
+				("-pendingOrder", String set_pending_order, " Pending list exploration order [EXPERIMENTAL].
+        Use 'accepting' for a layered NDFS where pending list has accepting states first.
+        Use 'none' for a layered NDFS where pending list has no ordering policy.
+        Use 'param' for a layered NDFS where pending list has bigger parametric zones first.
+        Use 'zone' for a layered NDFS where pending list has bigger full zone first.
+        Default: none.
+				");
 			] in
 					
 			(* function for parsing arguments *)
@@ -1317,10 +1347,10 @@ end;
 			else
 				print_message Verbose_medium ("Lookahead for succesors closing accepting cycles in NDFS (default).");
 
-			if !no_pending_ordered then
+(* 			if !no_pending_ordered then
 				print_message Verbose_standard ("No ordering of pending list with larger zones first in NDFS synthesis.")
 			else
-				print_message Verbose_medium ("Ordering pending list with larger zones first in NDFS synthesis (default).");
+				print_message Verbose_medium ("Ordering pending list with larger zones first in NDFS synthesis (default)."); *)
 
 
 			(*** TODO: check that only in IM/BC mode ***)

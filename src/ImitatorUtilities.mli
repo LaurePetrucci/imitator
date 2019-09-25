@@ -213,6 +213,17 @@ type exploration_order =
 	(** synMixedNDFS: NDFS synthesis with a mix of subsumption and layers **)
 (* 	| Exploration_syn_mixed_NDFS *)
 
+type pending_order =
+	(** NDFS with layers: order in the pending list exploration **)
+	(* no particular order *)
+	| Pending_none
+	(* biggest parametric projection of zone first *)
+	| Pending_param
+	(* accepting states first *)
+	| Pending_accept
+	(* biggest zone first *)
+	| Pending_zone
+
 
 type merge_heuristic =
 	(** Merge_always: merge after every processed state *)
