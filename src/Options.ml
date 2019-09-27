@@ -590,14 +590,10 @@ class imitator_options =
 					exploration_order <- Exploration_NDFS
 				else if order = "NDFSsub" then
 					exploration_order <- Exploration_NDFS_sub
+				else if order = "layerNDFS" then
+					exploration_order <- Exploration_layer_NDFS
 				else if order = "layerNDFSsub" then
 					exploration_order <- Exploration_layer_NDFS_sub
-(*				else if order = "synNDFSsub" then
-					exploration_order <- Exploration_syn_NDFS_sub
-				else if order = "synlayerNDFSsub" then
-					exploration_order <- Exploration_syn_layer_NDFS_sub*)
-		(*		else if order = "synMixedNDFS" then
-					exploration_order <- Exploration_syn_mixed_NDFS*)
 				else(
 					(*** HACK: print header now ***)
 					print_header_string();
@@ -769,6 +765,7 @@ class imitator_options =
         Use 'optTimeQueue' for optimal reachability with priority queue [ANP17]
         Use 'NDFS' for standard NDFS. [NPvdP18]
         Use 'NDFSsub' for standard NDFS with subsumption. [NPvdP18]
+        Use 'layerNDFS' for layered NDFS. [NPvdP18]
         Use 'layerNDFSsub' for layered NDFS with subsumption. [NPvdP18]
         Default: layerBFS (except for AccLoopSynthNDFS, in which case this is NDFS).
 				");
@@ -1145,10 +1142,11 @@ class imitator_options =
 				
 				| Exploration_NDFS -> print_message Verbose_standard ("Exploration order: standard NDFS [NPvdP18].")
 				| Exploration_NDFS_sub when !counterex = true -> print_message Verbose_standard ("Exploration order: NDFS with subsumption [NPvdP18]; emptiness only.")
-				| Exploration_layer_NDFS_sub when !counterex = true -> print_message Verbose_standard ("Exploration order: layerd NDFS with subsumption [NPvdP18]; emptiness only.")
+				| Exploration_layer_NDFS when !counterex = true -> print_message Verbose_standard ("Exploration order: layered NDFS ; emptiness only.")
+				| Exploration_layer_NDFS_sub when !counterex = true -> print_message Verbose_standard ("Exploration order: layered NDFS with subsumption [NPvdP18]; emptiness only.")
 				| Exploration_NDFS_sub (*when !counterex = false*) -> print_message Verbose_standard ("Exploration order: NDFS synthesis with subsumption [NPvdP18].")
+				| Exploration_layer_NDFS (*when !counterex = false*) -> print_message Verbose_standard ("Exploration order: NDFS synthesis with layers.")
 				| Exploration_layer_NDFS_sub (*when !counterex = false*) -> print_message Verbose_standard ("Exploration order: NDFS synthesis with subsumption and layers [NPvdP18].")
-(* 				| Exploration_syn_mixed_NDFS -> print_message Verbose_standard ("Exploration order: NDFS with mix of subsumption and layers.") *)
 end;
 
             (* Merge heuristic *)
