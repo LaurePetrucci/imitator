@@ -117,7 +117,7 @@ class algoNDFS =
 		(* basic queues for NDFS algorithms *)
 		(************************************)
 		let cyan = ref [] in
-		let blue = ref [] in
+		let blue = Hashtbl.create 100 in
 		let red = ref [] in
 		let pending = ref [] in (* used in the layered algorithms *)
 
@@ -127,6 +127,17 @@ class algoNDFS =
 		let constraint_list = ref [] in (* list of results found *)
 		let collected_constr = ref (LinearConstraint.false_p_nnconvex_constraint()) in
 
+
+                (* Table add, test and remove; a state is present as it maps to ():unit *)
+                let table_add table state_index =
+                        Hashtbl.replace table state_index ()
+                in
+                let table_rem table state_index =
+                        Hashtbl.remove table state_index
+                in
+                let table_test table state_index =
+                        List.length (Hashtbl.find_all table state_index) > 0
+                in
 
 		(***********************)
 		(* printing the queues *)
@@ -141,6 +152,15 @@ class algoNDFS =
 						^ r_printqueue thequeue ^ "]")
 			);
 		in
+
+	        let printtable colour thetable =
+                        if verbose_mode_greater Verbose_low then(
+                                let printrecord state_index u rest = 
+                                        (string_of_int state_index) ^ " " ^ rest;
+                                in print_message Verbose_low("Table " ^ colour ^ " : [ "
+                                        ^ Hashtbl.fold printrecord thetable "" ^ "]")
+                        );
+                in
 
 		let printpendingqueue colour thequeue =
 			if verbose_mode_greater Verbose_low then(
@@ -469,8 +489,8 @@ class algoNDFS =
 				let enterdfs (astate : State.state_index) : bool =
 					if (options#counterex = false &&
 							check_parameter_leq_list astate) then (
-						blue := astate::(!blue);
-						printqueue "Blue" !blue;
+                                                table_add blue astate;
+						printtable "Blue" blue;
 						false
 					) else true in
 				let predfs (astate : State.state_index) : unit =
@@ -499,8 +519,8 @@ class algoNDFS =
 					constraint_list := (LinearConstraint.px_hide_nonparameters_and_collapse state_constr)::(!constraint_list);
 					collected_constr :=	LinearConstraint.p_nnconvex_constraint_of_p_linear_constraints !constraint_list;
 					if (options#counterex = true) then raise TerminateAnalysis;
-					blue := astate::(!blue);
-					printqueue "Blue" !blue;
+					table_add blue astate;
+					printtable "Blue" blue;
 					(* and the current state is popped from the cyan list *)
 					match !cyan with
 					| thestate::body ->
@@ -509,7 +529,7 @@ class algoNDFS =
 					| _ -> print_message Verbose_standard "Error popping from cyan";
 				in
 				let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
-					if (not (List.mem astate !blue) &&
+					if (not (table_test blue astate) &&
 						not (List.mem astate !cyan)) then true else false in
 				let testaltdfs (thestate : State.state_index) (astate : State.state_index) : bool =
 					false in
@@ -558,8 +578,8 @@ class algoNDFS =
 							() in					
 						rundfs enterdfs predfs noLookahead cyclefound filterdfs testaltdfs alternativedfs testrecursivedfs postdfs astate astate_depth
 					);
-					if (not (List.mem astate !blue)) then blue := astate::(!blue);
-					printqueue "Blue" !blue;
+					table_add blue astate;
+					printtable "Blue" blue;
 					match !cyan with
 					| astate::body ->
 						cyan := body;
@@ -576,8 +596,8 @@ class algoNDFS =
 				let enterdfs (astate : State.state_index) : bool =
 					if (options#counterex = false && check_parameter_leq_list astate) then (
 						(* State astate has been handled and must now become blue *)
-						blue := astate::(!blue);
-						printqueue "Blue" !blue;
+						table_add blue astate;
+						printtable "Blue" blue;
 						false
 					) else true
 				in
@@ -608,8 +628,8 @@ class algoNDFS =
 					collected_constr :=	LinearConstraint.p_nnconvex_constraint_of_p_linear_constraints !constraint_list;
 					if (options#counterex = true) then raise TerminateAnalysis;
 					(* the state where the lookahead has found a cycle is now set blue *)
-					blue := astate::(!blue);
-					printqueue "Blue" !blue;
+					table_add blue astate;
+					printtable "Blue" blue;
 					(* and the current state is popped from the cyan list *)
 					match !cyan with
 					| thestate::body ->
@@ -618,7 +638,7 @@ class algoNDFS =
 					| _ -> print_message Verbose_standard "Error popping from cyan";
 				in
 				let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
-					if (not (List.mem astate !blue) &&
+					if (not (table_test blue astate) &&
 						not (List.mem astate !cyan) &&
 						not (setsubsumes !red astate)) then true else false in
 				let testaltdfs (thestate : State.state_index) (astate : State.state_index) : bool =
@@ -671,8 +691,8 @@ class algoNDFS =
 							() in					
 						rundfs enterdfs predfs noLookahead cyclefound filterdfs testaltdfs alternativedfs testrecursivedfs postdfs astate astate_depth
 					);
-					if (not (List.mem astate !blue)) then blue := astate::(!blue);
-					printqueue "Blue" !blue;
+					table_add blue astate;
+					printtable "Blue" blue;
 					match !cyan with
 					| astate::body ->
 						cyan := body;
@@ -695,13 +715,13 @@ class algoNDFS =
 						print_message Verbose_low ("Popped state "
 							^ (string_of_int thestate));
 						printpendingqueue "Pending" !pending;
-						if (not (List.mem thestate !blue)) then
+						if (not (table_test blue thestate)) then
 						begin 
 						let enterdfs (astate : State.state_index) : bool =
 							if (options#counterex = false && check_parameter_leq_list astate) then (
 								(* State astate has been handled and must now become blue *)
-								blue := astate::(!blue);
-								printqueue "Blue" !blue;
+								table_add blue astate;
+								printtable "Blue" blue;
 								false
 							) else true
 						in
@@ -732,8 +752,8 @@ class algoNDFS =
 							collected_constr :=	LinearConstraint.p_nnconvex_constraint_of_p_linear_constraints !constraint_list;
 							if (options#counterex = true) then raise TerminateAnalysis;
 							(* the state where the lookahead has found a cycle is now set blue *)
-							blue := astate::(!blue);
-							printqueue "Blue" !blue;
+							table_add blue astate;
+							printtable "Blue" blue;
 							(* and the current state is popped from the cyan list *)
 							match !cyan with
 							| thestate::body ->
@@ -742,7 +762,7 @@ class algoNDFS =
 							| _ -> print_message Verbose_standard "Error popping from cyan";
 						in
 						let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
-							if (not (List.mem astate !blue) &&
+							if (not (table_test blue astate) &&
 								not (List.mem astate !cyan)) then true else false in
 						let testaltdfs (thestate : State.state_index) (astate : State.state_index) : bool =
 							if (not (same_parameter_projection thestate astate)) then true
@@ -797,8 +817,8 @@ class algoNDFS =
 									() in					
 								rundfs enterdfs predfs noLookahead cyclefound filterdfs testaltdfs alternativedfs testrecursivedfs postdfs astate astate_depth
 							);
-							if (not (List.mem astate !blue)) then blue := astate::(!blue);
-							printqueue "Blue" !blue;
+							table_add blue astate;
+							printtable "Blue" blue;
 							match !cyan with
 							| astate::body ->
 								cyan := body;
@@ -824,13 +844,13 @@ class algoNDFS =
 						print_message Verbose_low ("Popped state "
 							^ (string_of_int thestate));
 						printpendingqueue "Pending" !pending;
-						if (not (List.mem thestate !blue)) then
+						if (not (table_test blue thestate)) then
 						begin 
 						let enterdfs (astate : State.state_index) : bool =
 							if (options#counterex = false && check_parameter_leq_list astate) then (
 								(* State astate has been handled and must now become blue *)
-								blue := astate::(!blue);
-								printqueue "Blue" !blue;
+								table_add blue astate;
+								printtable "Blue" blue;
 								false
 							) else true
 						in
@@ -861,8 +881,8 @@ class algoNDFS =
 							collected_constr :=	LinearConstraint.p_nnconvex_constraint_of_p_linear_constraints !constraint_list;
 							if (options#counterex = true) then raise TerminateAnalysis;
 							(* the state where the lookahead has found a cycle is now set blue *)
-							blue := astate::(!blue);
-							printqueue "Blue" !blue;
+							table_add blue astate;
+							printtable "Blue" blue;
 							(* and the current state is popped from the cyan list *)
 							match !cyan with
 							| thestate::body ->
@@ -871,7 +891,7 @@ class algoNDFS =
 							| _ -> print_message Verbose_standard "Error popping from cyan";
 						in
 						let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
-							if (not (List.mem astate !blue) &&
+							if (not (table_test blue astate) &&
 								not (List.mem astate !cyan) &&
 								not (layersetsubsumes !red astate)) then true else false in
 						let testaltdfs (thestate : State.state_index) (astate : State.state_index) : bool =
@@ -927,8 +947,8 @@ class algoNDFS =
 									() in					
 								rundfs enterdfs predfs noLookahead cyclefound filterdfs testaltdfs alternativedfs testrecursivedfs postdfs astate astate_depth
 							);
-							if (not (List.mem astate !blue)) then blue := astate::(!blue);
-							printqueue "Blue" !blue;
+							table_add blue astate;
+							printtable "Blue" blue;
 							match !cyan with
 							| astate::body ->
 								cyan := body;
