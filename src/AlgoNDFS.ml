@@ -116,9 +116,9 @@ class algoNDFS =
 		(************************************)
 		(* basic queues for NDFS algorithms *)
 		(************************************)
-		let cyan = ref [] in
+		let cyan = Hashtbl.create 100 in
 		let blue = Hashtbl.create 100 in
-		let red = ref [] in
+		let red = Hashtbl.create 100 in
 		let pending = ref [] in (* used in the layered algorithms *)
 
 		(**************************************)
@@ -137,6 +137,9 @@ class algoNDFS =
                 in
                 let table_test table state_index =
                         List.length (Hashtbl.find_all table state_index) > 0
+                in
+                let table_exists f table =
+                        Hashtbl.fold (fun a b c -> (f a) || c) table false
                 in
 
 		(***********************)
@@ -358,17 +361,17 @@ class algoNDFS =
 
 		let setsubsumes setbig smallstate = 
 			(* Does an element of the set subsume smallstate? *)
-			List.exists (fun bigstate -> (subsumes bigstate smallstate)) setbig
+			table_exists (fun bigstate -> (subsumes bigstate smallstate)) setbig
 		in
 
 		let subsumesset bigstate setsmall = 
 			(* Does bigstate subsume some element of the set? *)
-			List.exists (fun smallstate -> (subsumes bigstate smallstate)) setsmall
+			table_exists (fun smallstate -> (subsumes bigstate smallstate)) setsmall
 		in
 
 		let layersetsubsumes setbig smallstate = 
 			(* Does an element of the set subsume smallstate and is in the same layer? *)
-			List.exists (fun bigstate -> 
+			table_exists (fun bigstate -> 
 				((same_parameter_projection bigstate smallstate) && (subsumes bigstate smallstate))
 			) setbig
 		in
@@ -390,7 +393,7 @@ class algoNDFS =
 			if not options#no_lookahead then (
 				try ((List.find (fun suc_id ->
 					(State.is_accepting (StateSpace.get_state state_space suc_id)) &&
-				(List.mem suc_id !cyan)) thesuccessors), true)
+				(table_test cyan suc_id)) thesuccessors), true)
 				with Not_found -> init_state_index, false
 			) else init_state_index, false
 		in
@@ -416,13 +419,13 @@ class algoNDFS =
 			| Keep_going (*when termination_status <> None*) -> ()
 			
 			(* Termination due to time limit reached *)
-			| Time_limit_reached -> termination_status <- Some (Result.Time_limit (List.length !cyan))
+			| Time_limit_reached -> termination_status <- Some (Result.Time_limit (Hashtbl.length cyan))
 			
 			(* Termination due to a number of explored states reached *)
-			| States_limit_reached -> termination_status <- Some (Result.States_limit (List.length !cyan))
+			| States_limit_reached -> termination_status <- Some (Result.States_limit (Hashtbl.length cyan))
 			
 			(* Termination due to state space depth limit reached *)
-			| Depth_limit_reached -> termination_status <- Some (Result.Depth_limit (List.length !cyan))
+			| Depth_limit_reached -> termination_status <- Some (Result.Depth_limit (Hashtbl.length cyan))
 			end;
 			if (limit_reached <> Keep_going) then raise (TerminateAnalysis)
 			else(
@@ -495,8 +498,8 @@ class algoNDFS =
 					) else true in
 				let predfs (astate : State.state_index) : unit =
 					processed_blue <- processed_blue + 1;
-					cyan := astate::(!cyan);
-					printqueue "Cyan" !cyan;
+					table_add cyan astate;
+					printtable "Cyan" cyan;
 					(*** WARNING (ÉA, 2019/07/11): this statement is a bit strange with unit type ***)
 					let _ = self#post_from_one_state astate in ();
 					() in
@@ -522,15 +525,11 @@ class algoNDFS =
 					table_add blue astate;
 					printtable "Blue" blue;
 					(* and the current state is popped from the cyan list *)
-					match !cyan with
-					| thestate::body ->
-						cyan := body;
-						printqueue "Cyan" !cyan;
-					| _ -> print_message Verbose_standard "Error popping from cyan";
+                                        table_rem cyan thestate;
 				in
 				let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
 					if (not (table_test blue astate) &&
-						not (List.mem astate !cyan)) then true else false in
+						not (table_test cyan astate)) then true else false in
 				let testaltdfs (thestate : State.state_index) (astate : State.state_index) : bool =
 					false in
 				let alternativedfs (astate : State.state_index) (astate_depth : int) : unit =
@@ -545,8 +544,8 @@ class algoNDFS =
 						let enterdfs (astate : State.state_index) : bool =
 							true in
 						let predfs (astate : State.state_index) : unit =
-							red := astate::(!red);
-							printqueue "Red" !red in
+							table_add red astate;
+							printtable "Red" red in
 						let cyclefound (thestate : State.state_index) (astate : State.state_index) : unit =
 							cyclecount <- cyclecount + 1;
 							if (options#counterex = true) then
@@ -568,24 +567,20 @@ class algoNDFS =
 						let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
 							true in
 						let testaltdfs (thestate : State.state_index) (astate : State.state_index) : bool =
-							if (List.mem astate !cyan) then true else false in
+							if (table_test cyan astate) then true else false in
 						let alternativedfs (astate : State.state_index) (astate_depth : int) : unit =
 							cyclefound astate astate
 						in
 						let testrecursivedfs (astate : State.state_index) : bool =
-							if (not (List.mem astate !red)) then true else false in
+							if (not (table_test red astate)) then true else false in
 						let postdfs (astate : State.state_index) (astate_depth : int) : unit =
 							() in					
 						rundfs enterdfs predfs noLookahead cyclefound filterdfs testaltdfs alternativedfs testrecursivedfs postdfs astate astate_depth
 					);
 					table_add blue astate;
 					printtable "Blue" blue;
-					match !cyan with
-					| astate::body ->
-						cyan := body;
-						printqueue "Cyan" !cyan;
-					| _ -> print_message Verbose_standard "Error popping from cyan";
-					() in
+                                        table_rem cyan astate;
+					in
 				(try (rundfs enterdfs predfs withLookahead cyclefound filterdfs testaltdfs alternativedfs testrecursivedfs postdfs init_state_index 0;)
 					with TerminateAnalysis -> ());
 				print_message Verbose_low("Finished the calls")
@@ -603,8 +598,8 @@ class algoNDFS =
 				in
 				let predfs (astate : State.state_index) : unit =
 					processed_blue <- processed_blue + 1;
-					cyan := astate::(!cyan);
-					printqueue "Cyan" !cyan;
+					table_add cyan astate;
+					printtable "Cyan" cyan;
 					(*** WARNING (ÉA, 2019/07/11): this statement is a bit strange with unit type ***)
 					let _ = self#post_from_one_state astate in ();
 					() in
@@ -631,16 +626,12 @@ class algoNDFS =
 					table_add blue astate;
 					printtable "Blue" blue;
 					(* and the current state is popped from the cyan list *)
-					match !cyan with
-					| thestate::body ->
-						cyan := body;
-						printqueue "Cyan" !cyan;
-					| _ -> print_message Verbose_standard "Error popping from cyan";
+                                        table_rem cyan thestate;
 				in
 				let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
 					if (not (table_test blue astate) &&
-						not (List.mem astate !cyan) &&
-						not (setsubsumes !red astate)) then true else false in
+						not (table_test cyan astate) &&
+						not (setsubsumes red astate)) then true else false in
 				let testaltdfs (thestate : State.state_index) (astate : State.state_index) : bool =
 					false in
 				let alternativedfs (astate: State.state_index) (astate_depth : int) : unit =
@@ -655,8 +646,8 @@ class algoNDFS =
 						let enterdfs (astate: State.state_index) : bool =
 							true in
 						let predfs (astate: State.state_index) : unit =
-							red := astate::(!red);
-							printqueue "Red" !red in
+							table_add red astate;
+							printtable "Red" red in
 						let cyclefound (thestate : State.state_index) (astate : State.state_index) : unit =
 							cyclecount <- cyclecount + 1;
 							if (options#counterex = true) then
@@ -681,24 +672,20 @@ class algoNDFS =
 							if (same_parameter_projection thestate astate) then true
 							else false in
 						let testaltdfs (thestate : State.state_index) (astate : State.state_index) : bool =
-							if (subsumesset astate !cyan) then true else false in
+							if (subsumesset astate cyan) then true else false in
 						let alternativedfs (astate : State.state_index) (astate_depth : int) : unit =
 							cyclefound astate astate
 						in
 						let testrecursivedfs (astate : State.state_index) : bool =
-							if (not (setsubsumes !red astate)) then true else false in
+							if (not (setsubsumes red astate)) then true else false in
 						let postdfs (astate : State.state_index) (astate_depth : int) : unit =
 							() in					
 						rundfs enterdfs predfs noLookahead cyclefound filterdfs testaltdfs alternativedfs testrecursivedfs postdfs astate astate_depth
 					);
 					table_add blue astate;
 					printtable "Blue" blue;
-					match !cyan with
-					| astate::body ->
-						cyan := body;
-						printqueue "Cyan" !cyan;
-					| _ -> print_message Verbose_standard "Error popping from cyan";
-					() in
+                                        table_rem cyan astate;
+					in
 				(try (rundfs enterdfs predfs withLookahead cyclefound filterdfs testaltdfs alternativedfs testrecursivedfs postdfs init_state_index 0;)
 					with TerminateAnalysis -> ());
 				print_message Verbose_low("Finished the calls")
@@ -727,8 +714,8 @@ class algoNDFS =
 						in
 						let predfs (astate : State.state_index) : unit =
 							processed_blue <- processed_blue + 1;
-							cyan := astate::(!cyan);
-							printqueue "Cyan" !cyan;
+							table_add cyan astate;
+							printtable "Cyan" cyan;
 							(*** WARNING (ÉA, 2019/07/11): this statement is a bit strange with unit type ***)
 							let _ = self#post_from_one_state astate in ();
 							() in
@@ -755,15 +742,11 @@ class algoNDFS =
 							table_add blue astate;
 							printtable "Blue" blue;
 							(* and the current state is popped from the cyan list *)
-							match !cyan with
-							| thestate::body ->
-								cyan := body;
-								printqueue "Cyan" !cyan;
-							| _ -> print_message Verbose_standard "Error popping from cyan";
+                                                        table_rem cyan thestate;
 						in
 						let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
 							if (not (table_test blue astate) &&
-								not (List.mem astate !cyan)) then true else false in
+								not (table_test cyan astate)) then true else false in
 						let testaltdfs (thestate : State.state_index) (astate : State.state_index) : bool =
 							if (not (same_parameter_projection thestate astate)) then true
 							else false in
@@ -779,8 +762,8 @@ class algoNDFS =
 								let enterdfs (astate: State.state_index) : bool =
 									true in
 								let predfs (astate: State.state_index) : unit =
-									red := astate::(!red);
-									printqueue "Red" !red in
+									table_add red astate;
+									printtable "Red" red in
 								let cyclefound (thestate : State.state_index) (astate : State.state_index) : unit =
 									cyclecount <- cyclecount + 1;
 									if (options#counterex = true) then
@@ -805,13 +788,13 @@ class algoNDFS =
 									if (same_parameter_projection thestate astate) then true
 									else false in
 								let testaltdfs (thestate : State.state_index) (astate : State.state_index) : bool =
-									if (List.mem astate !cyan) then true
+									if (table_test cyan astate) then true
 									else false in
 								let alternativedfs (astate : State.state_index) (astate_depth : int) : unit =
 									cyclefound astate astate
 								in
 								let testrecursivedfs (astate : State.state_index) : bool =
-									if (not (List.mem astate !red)) then true
+									if (not (table_test red astate)) then true
 									else false in
 								let postdfs (astate : State.state_index) (astate_depth : int) : unit =
 									() in					
@@ -819,12 +802,8 @@ class algoNDFS =
 							);
 							table_add blue astate;
 							printtable "Blue" blue;
-							match !cyan with
-							| astate::body ->
-								cyan := body;
-								printqueue "Cyan" !cyan;
-							| _ -> print_message Verbose_standard "Error popping from cyan";
-							() in
+                                                        table_rem cyan astate;
+							in
 						rundfs enterdfs predfs withLookahead cyclefound filterdfs testaltdfs alternativedfs testrecursivedfs postdfs thestate thestate_depth;
 						end;
 				done;)
@@ -856,8 +835,8 @@ class algoNDFS =
 						in
 						let predfs (astate : State.state_index) : unit =
 							processed_blue <- processed_blue + 1;
-							cyan := astate::(!cyan);
-							printqueue "Cyan" !cyan;
+							table_add cyan astate;
+							printtable "Cyan" cyan;
 							(*** WARNING (ÉA, 2019/07/11): this statement is a bit strange with unit type ***)
 							let _ = self#post_from_one_state astate in ();
 							() in
@@ -884,16 +863,12 @@ class algoNDFS =
 							table_add blue astate;
 							printtable "Blue" blue;
 							(* and the current state is popped from the cyan list *)
-							match !cyan with
-							| thestate::body ->
-								cyan := body;
-								printqueue "Cyan" !cyan;
-							| _ -> print_message Verbose_standard "Error popping from cyan";
+                                                        table_rem cyan thestate;
 						in
 						let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
 							if (not (table_test blue astate) &&
-								not (List.mem astate !cyan) &&
-								not (layersetsubsumes !red astate)) then true else false in
+								not (table_test cyan astate) &&
+								not (layersetsubsumes red astate)) then true else false in
 						let testaltdfs (thestate : State.state_index) (astate : State.state_index) : bool =
 							if (not (same_parameter_projection thestate astate)) then true
 							else false in
@@ -909,8 +884,8 @@ class algoNDFS =
 								let enterdfs (astate: State.state_index) : bool =
 									true in
 								let predfs (astate: State.state_index) : unit =
-									red := astate::(!red);
-									printqueue "Red" !red in
+									table_add red astate;
+									printtable "Red" red in
 								let cyclefound (thestate : State.state_index) (astate : State.state_index) : unit =
 									cyclecount <- cyclecount + 1;
 									if (options#counterex = true) then
@@ -935,13 +910,13 @@ class algoNDFS =
 									if (same_parameter_projection thestate astate) then true
 									else false in
 								let testaltdfs (thestate : State.state_index) (astate : State.state_index) : bool =
-									if (subsumesset astate !cyan) then true
+									if (subsumesset astate cyan) then true
 									else false in
 								let alternativedfs (astate : State.state_index) (astate_depth : int) : unit =
 									cyclefound astate astate
 								in
 								let testrecursivedfs (astate : State.state_index) : bool =
-									if (not (layersetsubsumes !red astate)) then true
+									if (not (layersetsubsumes red astate)) then true
 									else false in
 								let postdfs (astate : State.state_index) (astate_depth : int) : unit =
 									() in					
@@ -949,12 +924,8 @@ class algoNDFS =
 							);
 							table_add blue astate;
 							printtable "Blue" blue;
-							match !cyan with
-							| astate::body ->
-								cyan := body;
-								printqueue "Cyan" !cyan;
-							| _ -> print_message Verbose_standard "Error popping from cyan";
-							() in
+                                                        table_rem cyan astate;
+							in
 						rundfs enterdfs predfs withLookahead cyclefound filterdfs testaltdfs alternativedfs testrecursivedfs postdfs thestate thestate_depth;
 						end;
 				done;)
