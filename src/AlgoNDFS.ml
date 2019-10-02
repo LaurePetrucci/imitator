@@ -138,9 +138,6 @@ class algoNDFS =
                 let table_test table state_index =
                         List.length (Hashtbl.find_all table state_index) > 0
                 in
-                let table_exists f table =
-                        Hashtbl.fold (fun a b c -> (f a) || c) table false
-                in
 
 		(***********************)
 		(* printing the queues *)
@@ -361,19 +358,27 @@ class algoNDFS =
 
 		let setsubsumes setbig smallstate = 
 			(* Does an element of the set subsume smallstate? *)
-			table_exists (fun bigstate -> (subsumes bigstate smallstate)) setbig
+                        (* we traverse all states with the same location modulo hash collision *)
+                        let similar_states = StateSpace.get_comparable_states state_space smallstate in
+                        let check_sub bigstate = (table_test setbig bigstate) && (subsumes bigstate smallstate) in
+			List.exists check_sub similar_states
 		in
 
 		let subsumesset bigstate setsmall = 
 			(* Does bigstate subsume some element of the set? *)
-			table_exists (fun smallstate -> (subsumes bigstate smallstate)) setsmall
+                        (* we traverse all states with the same location modulo hash collision *)
+                        let similar_states = StateSpace.get_comparable_states state_space bigstate in
+                        let check_sub smallstate = (table_test setsmall smallstate) && (subsumes bigstate smallstate) in
+			List.exists check_sub similar_states
 		in
 
 		let layersetsubsumes setbig smallstate = 
 			(* Does an element of the set subsume smallstate and is in the same layer? *)
-			table_exists (fun bigstate -> 
-				((same_parameter_projection bigstate smallstate) && (subsumes bigstate smallstate))
-			) setbig
+                        (* we traverse all states with the same location modulo hash collision *)
+                        let similar_states = StateSpace.get_comparable_states state_space smallstate in
+                        let check_sub bigstate = 
+                                (table_test setbig bigstate) && (subsumes bigstate smallstate) && (same_parameter_projection bigstate smallstate) in
+			List.exists check_sub similar_states
 		in
 
 		(******************************************)
