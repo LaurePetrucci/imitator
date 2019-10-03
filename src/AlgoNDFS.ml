@@ -352,7 +352,7 @@ class algoNDFS =
 			let smallstate = StateSpace.get_state state_space smallstate_index in
 			let states_loc, states_constr = smallstate.global_location, smallstate.px_constraint in
 			(* check that the location is the same *)
-			if not (Location.location_equal stateb_loc states_loc) then false
+                        if not (Location.location_equal stateb_loc states_loc) then (print_message Verbose_high "SS: different location..."; false)
 			else (LinearConstraint.px_is_leq states_constr stateb_constr) (* check the inclusion of constraints *)
 		in
 
@@ -361,6 +361,7 @@ class algoNDFS =
                         (* we traverse all states with the same location modulo hash collision *)
                         let similar_states = StateSpace.get_comparable_states state_space smallstate in
                         let check_sub bigstate = (table_test setbig bigstate) && (subsumes bigstate smallstate) in
+                        print_message Verbose_high ("SS setsubsumes with " ^ string_of_int (List.length similar_states) ^ " states");
 			List.exists check_sub similar_states
 		in
 
@@ -369,6 +370,7 @@ class algoNDFS =
                         (* we traverse all states with the same location modulo hash collision *)
                         let similar_states = StateSpace.get_comparable_states state_space bigstate in
                         let check_sub smallstate = (table_test setsmall smallstate) && (subsumes bigstate smallstate) in
+                        print_message Verbose_high ("SS subsumesset with " ^ string_of_int (List.length similar_states) ^ " states"); 
 			List.exists check_sub similar_states
 		in
 
@@ -378,7 +380,8 @@ class algoNDFS =
                         let similar_states = StateSpace.get_comparable_states state_space smallstate in
                         let check_sub bigstate = 
                                 (table_test setbig bigstate) && (subsumes bigstate smallstate) && (same_parameter_projection bigstate smallstate) in
-			List.exists check_sub similar_states
+                        print_message Verbose_high ("SS layersetsubsumes with " ^ string_of_int (List.length similar_states) ^ " states");
+ 			List.exists check_sub similar_states
 		in
 
 		(******************************************)
