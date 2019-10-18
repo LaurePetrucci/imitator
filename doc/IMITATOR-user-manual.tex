@@ -777,6 +777,7 @@ These are accessible via the \styleOption{-explOrder} option:
 \begin{description}
 	\item[\styleOption{-explOrder NDFS}]: use standard NDFS to find an accepting cycle (default option);
 	\item[\styleOption{-explOrder NDFSsub}]: standard NDFS with subsumption;
+	\item[\styleOption{-explOrder layerNDFS}]: NDFS with layers;
 	\item[\styleOption{-explOrder layerNDFSsub}]: NDFS with subsumption and layers;
 % 	\item[\styleOption{-explOrder synNDFSsub}]: NDFS synthesis with subsumption;
 % 	\item[\styleOption{-explOrder synlayerNDFSsub}]: NDFS synthesis with subsumption and layers.
@@ -800,6 +801,18 @@ As usual, \imitator{} can also
 	or
 	output the constraint synthesized in a graphical form in two dimensions (option \styleOption{-output-cart}).
 
+The exploration with layers considers different ordering policies for its pending
+list via the \styleOption{-pendingOrder} option:
+\begin{description}
+	\item[\styleOption{-pendingOrder none}]: the states are added to the pending list
+		without specific policy	(default option);
+	\item[\styleOption{-pendingOrder accepting}]: the accepting states are added at
+		the head of the pending list, the others at the tail;
+	\item[\styleOption{-pendingOrder param}]: the states are added to the list on
+		the basis of a largest projection of zone on parameters first;
+	\item[\styleOption{-pendingOrder zone}]: the states are added to the list on
+		the basis of a largest zone first.
+\end{description}
 
 %------------------------------------------------------------
 \begin{remark}
@@ -1480,6 +1493,7 @@ In this latter case, the possible values are:
 \begin{description}
 	\item[\styleOption{-explOrder NDFS}]: use standard NDFS to find an accepting cycle (default option);
 	\item[\styleOption{-explOrder NDFSsub}]: standard NDFS with subsumption;
+	\item[\styleOption{-explOrder layerNDFS}]: NDFS with layers;
 	\item[\styleOption{-explOrder layerNDFSsub}]: NDFS with subsumption and layers;
 % 	\item[\styleOption{-explOrder synNDFSsub}]: NDFS synthesis with subsumption;
 % 	\item[\styleOption{-explOrder synlayerNDFSsub}]: NDFS synthesis with subsumption and layers.
@@ -1602,6 +1616,10 @@ The mode for \imitator{}, \ie{} the algorithm to run.
 	& (see \cref{sss:mode:BC:shuffle}) \\
 \end{longtable}
 
+%------------------------------------------------------------
+\paragraph{\styleOption{-no-acceptfirst} (default: false)}
+%------------------------------------------------------------
+In \styleOption{AccLoopSynthNDFS}, do not put accepting states at the head of the successors list.
 
 
 %------------------------------------------------------------
@@ -1610,6 +1628,12 @@ The mode for \imitator{}, \ie{} the algorithm to run.
 In \EFsynth{}, no inclusion test of the new states constraints in the already computed constraint is performed when this option is enabled.
 Otherwise, in normal mode, the algorithm checks whether a new state parameter constraint is included into the already computed parameter constraint and, if so, cuts the branch.
 This can save time by cutting branches, but can also slow down the analysis for complex constraints.
+
+%------------------------------------------------------------
+\paragraph{\styleOption{-no-lookahead} (default: false)}
+%------------------------------------------------------------
+In \styleOption{AccLoopSynthNDFS}, do not perform a lookahead for finding successors
+closing an accepting cycle.
 
 
 %------------------------------------------------------------
@@ -1755,6 +1779,22 @@ In addition, the parametric constraint is printed too.
 Enabling this option instead of \styleOption{-output-trace-set} will yield a very large graph, and it is useful (and readable) mostly for very small trace sets.
 	% TODO: show examples in the manual
 
+
+%------------------------------------------------------------
+\paragraph{\styleOption{-pendingOrder} (default: \styleOption{none})}
+%------------------------------------------------------------
+Defines the ordering strategy used for the pending list in NDFS explorationwith layers.
+The possible values are:
+\begin{longtable}{@{} l @{\ \ } p{12.5cm}}
+	\styleOption{none} & the states are added to the pending list
+		without specific policy	(default option). \\
+	\styleOption{accepting} & the accepting states are added at
+		the head of the pending list, the others at the tail. \\
+	\styleOption{param} & the states are added to the list on
+		the basis of a largest projection of zone on parameters first. \\
+	\styleOption{zone} & the states are added to the list on
+		the basis of a largest zone first.
+\end{longtable}
 
 %------------------------------------------------------------
 \paragraph{\styleOption{-PRP} (default: false)}
