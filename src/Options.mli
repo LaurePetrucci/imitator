@@ -57,6 +57,7 @@ class imitator_options :
 		method inclusion : bool
 		method inclusion2 : bool
 		method merge : bool
+		method mergeq : bool
 (* 		method merge_before : bool *)
 		method merge_heuristic : merge_heuristic
 		method model_input_file_name : string

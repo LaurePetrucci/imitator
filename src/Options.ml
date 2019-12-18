@@ -250,6 +250,7 @@ class imitator_options =
 		
 		(* Merging states on the fly *)
 		val mutable merge = ref false
+		val mutable mergeq = ref false
 		(* Merging states on the fly (after pi0-compatibility check) *)
 (* 		val mutable merge_before = ref false *)
 	
@@ -291,6 +292,7 @@ class imitator_options =
 		method inclusion = !inclusion
 		method inclusion2 = !inclusion2
 		method merge = !merge
+		method mergeq = !mergeq
 (* 		method merge_before = !merge_before *)
 		method merge_heuristic = merge_heuristic
 		method model_input_file_name = model_input_file_name
@@ -782,6 +784,9 @@ class imitator_options =
 				
 				("-merge", Set merge, " Use the merging technique of [AFS13]. Default: 'false' (disable)");
 				
+				("-mergeq", (merge <- ref true ; Set mergeq),
+					" Use the merging technique of [AFS13] on the queue  only. Default: 'false' (disable)");
+				
 (*				("-merge-before", Set merge_before , " Use the merging technique of [AFS13] but merges states before pi0-compatibility test (EXPERIMENTAL). Default: 'false' (disable)");*)
 				
 				("-merge-heuristic", String set_merge_heuristic, " Merge heuristic for EFsynthminpq. Options are 'always', 'targetseen', 'pq10', 'pq100', 'iter10', 'iter100'. Default: iter10.");
@@ -1121,7 +1126,7 @@ class imitator_options =
 			(* AF is not safe with incl or merging *)
 			if imitator_mode = AF_synthesis then(
 				if !inclusion then print_warning "The state inclusion option may not preserve the correctness of AFsynth.";
-				if !merge then print_warning "The merging option may not preserve the correctness of AFsynth.";
+				if !merge || !mergeq then print_warning "The merging option may not preserve the correctness of AFsynth.";
 			);
 			
 			(*** TODO: add warning if -cart but mode translation or statespace ***)
@@ -1311,8 +1316,12 @@ end;
 			if !merge then (
 				print_message Verbose_standard ("Merging technique of [AFS13] enabled.");
 			) else
+				if !mergeq then (
+				print_message Verbose_standard ("Merging technique of [AFS13] enabled on queue only.");
+			) else
 				print_message Verbose_medium ("Merging technique of [AFS13] disabled (default).")
 			;
+
 (*			if !merge_before then
 				print_message Verbose_standard ("Variant of the merging technique of [AFS13] enabled. States will be merged before pi0-compatibility test (EXPERIMENTAL).")
 			else
