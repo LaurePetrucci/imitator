@@ -1313,11 +1313,11 @@ end;
 			;*)
 
 
-			if !merge then (
-				print_message Verbose_standard ("Merging technique of [AFS13] enabled.");
-			) else
-				if !mergeq then (
+			if !mergeq then (
 				print_message Verbose_standard ("Merging technique of [AFS13] enabled on queue only.");
+			) else
+				if !merge then (
+				print_message Verbose_standard ("Merging technique of [AFS13] enabled.");
 			) else
 				print_message Verbose_medium ("Merging technique of [AFS13] disabled (default).")
 			;
