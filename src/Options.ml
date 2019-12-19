@@ -784,7 +784,7 @@ class imitator_options =
 				
 				("-merge", Set merge, " Use the merging technique of [AFS13]. Default: 'false' (disable)");
 				
-				("-mergeq", (merge <- ref true ; Set mergeq),
+				("-mergeq", Unit (fun () -> mergeq <- ref true; merge <- ref true),
 					" Use the merging technique of [AFS13] on the queue  only. Default: 'false' (disable)");
 				
 (*				("-merge-before", Set merge_before , " Use the merging technique of [AFS13] but merges states before pi0-compatibility test (EXPERIMENTAL). Default: 'false' (disable)");*)
