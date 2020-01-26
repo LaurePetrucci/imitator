@@ -511,11 +511,11 @@ class algoNDFS =
 					true in
 				let postdfs (astate : State.state_index) (astate_depth : int) : unit =
 					(* launch red dfs only if not with a smaller constraint than a state marked by a lookahead *)
-					if ((not (check_parameter_leq_list astate)) &&
+					if ((* (not (check_parameter_leq_list astate)) && *)
 							(State.is_accepting (StateSpace.get_state state_space astate))) then (
 						(* set up the dfs red calls *)
 						let enterdfs (astate : State.state_index) : bool =
-							true in
+							not (check_parameter_leq_list astate) in
 						let predfs (astate : State.state_index) : unit =
 							table_add red astate;
 							printtable "Red" red in
@@ -614,11 +614,11 @@ class algoNDFS =
 					true in
 				let postdfs (astate: State.state_index) (astate_depth : int) : unit =
 					(* launch red dfs only if not with a smaller constraint than a state marked by a lookahead *)
-					if ((not (check_parameter_leq_list astate)) &&
+					if ((* (not (check_parameter_leq_list astate)) && *)
 							(State.is_accepting (StateSpace.get_state state_space astate))) then (
 						(* set up the dfs red calls *)
 						let enterdfs (astate: State.state_index) : bool =
-							true in
+							not (check_parameter_leq_list astate) in
 						let predfs (astate: State.state_index) : unit =
 							table_add red astate;
 							printtable "Red" red in
@@ -732,11 +732,11 @@ class algoNDFS =
 							true in
 						let postdfs (astate: State.state_index) (astate_depth : int) : unit =
 							(* launch red dfs only if not with a smaller constraint than a state marked by a lookahead *)
-							if ((not (check_parameter_leq_list astate)) &&
+							if ((* (not (check_parameter_leq_list astate)) && *)
 									(State.is_accepting (StateSpace.get_state state_space astate))) then (
 								(* set up the dfs red calls *)
 								let enterdfs (astate: State.state_index) : bool =
-									true in
+									not (check_parameter_leq_list astate) in
 								let predfs (astate: State.state_index) : unit =
 									table_add red astate;
 									printtable "Red" red in
@@ -855,11 +855,11 @@ class algoNDFS =
 							true in
 						let postdfs (astate: State.state_index) (astate_depth : int) : unit =
 							(* launch red dfs only if not with a smaller constraint than a state marked by a lookahead *)
-							if ((not (check_parameter_leq_list astate)) &&
+							if ((* (not (check_parameter_leq_list astate)) && *)
 									(State.is_accepting (StateSpace.get_state state_space astate))) then (
 								(* set up the dfs red calls *)
 								let enterdfs (astate: State.state_index) : bool =
-									true in
+									not (check_parameter_leq_list astate) in
 								let predfs (astate: State.state_index) : unit =
 									table_add red astate;
 									printtable "Red" red in
