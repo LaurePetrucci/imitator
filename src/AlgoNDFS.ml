@@ -53,7 +53,8 @@ class algoNDFS =
 	val mutable cyclecount = 0 (* counter for the cycles found *)
 	val mutable processed_blue = 0 (* number of states processed by a blue dfs *)
 	val mutable depth_reached = false (* used when a max depth has been reached *)
-	
+	val mutable execute_again = true (* used when not doing iterative deepening for 1 execution only *)
+
 	(*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*)
 	(* Name of the algorithm *)
 	(*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*)
@@ -142,7 +143,7 @@ class algoNDFS =
 		(***********************)
 		(* printing the queues *)
 		(***********************)
-		let printqueue colour thequeue =
+(* 		let printqueue colour thequeue =
 			if verbose_mode_greater Verbose_low then(
 				let rec r_printqueue thequeue = match thequeue with
 					| [] -> "";
@@ -153,7 +154,7 @@ class algoNDFS =
 			);
 		in
 
-	        let printtable colour thetable =
+ *)	        let printtable colour thetable =
                         if verbose_mode_greater Verbose_low then(
                                 let printrecord state_index u rest = 
                                         (string_of_int state_index) ^ " " ^ rest;
@@ -267,11 +268,11 @@ class algoNDFS =
 		(*************************************)
 		(* Returns True if thequeue is empty *)
 		(*************************************)
-		let queue_is_empty thequeue = match thequeue with
+(* 		let queue_is_empty thequeue = match thequeue with
 			| [] -> true;
 			| _ -> false;
 		in
-
+ *)
 		(**************************************************)
 		(* add a state and its depth to the pending queue *)
 		(**************************************************)
@@ -454,8 +455,19 @@ class algoNDFS =
 		(*                     State Space Exploration                       *)
 		(*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*)
 
-		print_message Verbose_standard("---------------- Starting exploration ----------------");
+		(* loop for iterative deepening, otherwise used only once *)
+
+(* 			let depth_ok = match options#depth_limit with
+				| None -> true
+				| Some depth_value -> if (depth_value  > thestate_depth) then true
+										else (depth_reached <- true; false)
+			in
+ *)
+		while execute_again do
+		if (options#depth_init = None) then execute_again <- false;
  
+		print_message Verbose_standard("---------------- Starting exploration ----------------");
+
 		begin
 		match options#exploration_order with				
 
@@ -918,13 +930,20 @@ class algoNDFS =
 
 		print_message Verbose_standard("---------------- Ending exploration ------------------");
 
+		if execute_again then(
+			ResultProcessor.process_result self#compute_result "Iterative deepening" None;
+			()
+		);
+
+		done; (* end of the big loop *)
+
 		(*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*)
 		(*                 End of State Space Exploration                    *)
 		(*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*)
 
 		(* Statistics *)
 		counter_explore_using_strategy#stop;
-	
+
 		(* The end *)
 		()
 	
@@ -1014,13 +1033,13 @@ class algoNDFS =
 		print_message Verbose_standard ("Number of cycles found: " ^ (string_of_int cyclecount));
 
 		(* Get the termination status *)
-		 let termination_status = match termination_status with
+		let termination_status = match termination_status with
 			| None -> raise (InternalError "Termination status not set in NDFS exploration")
 			| Some status -> status
 		in
 
 		let soundness =
-			if (termination_status = Regular_termination (*&& not depth_reached*))
+			if (termination_status = Regular_termination && not depth_reached)
 			then Constraint_exact
 			else Constraint_maybe_under
 		in

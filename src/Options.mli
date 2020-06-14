@@ -43,6 +43,7 @@ class imitator_options :
 (* 		method completeIM : bool *)
 		method counterex : bool
 		method depth_limit : int option
+		method depth_init : int option
 		method distribution_mode : distribution_mode
 		method distributedKillIM : bool
 (* 		method dynamic : bool *)
