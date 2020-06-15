@@ -378,6 +378,15 @@ class algoNDFS =
 		(*****************************)
 		let noLookahead thesuccessors = init_state_index, false in
 
+		(*******************************************************)
+		(* Function for generating successors only when needed *)
+		(*******************************************************)
+		let find_or_compute_successors thestate =
+			let successors = hashtbl_get_or_default (StateSpace.get_transitions_table state_space) thestate [] in
+			if successors = [] then (self#post_from_one_state thestate; ())
+			else ();
+		in
+
 		(***************************)
 		(* General Scheme of a DFS *)
 		(***************************)
@@ -486,12 +495,6 @@ class algoNDFS =
 				Hashtbl.clear red
 			);
 
-			(* HACK  to check the constraint is still there *)
-(* 			termination_status <- Some Regular_termination;
-			constraint_valuations <- Some !collected_constr;
-			ResultProcessor.process_result self#compute_result "Iterative deepening" None;
- *)			(* END HACK *)
-
 			begin
 			match options#exploration_order with				
 
@@ -501,7 +504,7 @@ class algoNDFS =
 					let enterdfs (astate : State.state_index) : bool =
 						if (options#counterex = false &&
 								check_parameter_leq_list astate) then (
-	                                                table_add blue astate;
+							table_add blue astate;
 							printtable "Blue" blue;
 							false
 						) else true in
@@ -509,9 +512,8 @@ class algoNDFS =
 						processed_blue <- processed_blue + 1;
 						table_add cyan astate;
 						printtable "Cyan" cyan;
-						(*** WARNING (ÉA, 2019/07/11): this statement is a bit strange with unit type ***)
-						let _ = self#post_from_one_state astate in ();
-						() in
+						find_or_compute_successors astate
+					in
 					let cyclefound (thestate : State.state_index) (astate : State.state_index) : unit =
 						cyclecount <- cyclecount + 1;
 						if (options#counterex = true) then
@@ -611,9 +613,8 @@ class algoNDFS =
 						processed_blue <- processed_blue + 1;
 						table_add cyan astate;
 						printtable "Cyan" cyan;
-						(*** WARNING (ÉA, 2019/07/11): this statement is a bit strange with unit type ***)
-						let _ = self#post_from_one_state astate in ();
-						() in
+						find_or_compute_successors astate
+					in
 					let cyclefound (thestate : State.state_index) (astate : State.state_index) : unit =
 						cyclecount <- cyclecount + 1;
 						if (options#counterex = true) then
@@ -728,9 +729,8 @@ class algoNDFS =
 								processed_blue <- processed_blue + 1;
 								table_add cyan astate;
 								printtable "Cyan" cyan;
-								(*** WARNING (ÉA, 2019/07/11): this statement is a bit strange with unit type ***)
-								let _ = self#post_from_one_state astate in ();
-								() in
+								find_or_compute_successors astate
+							in
 							let cyclefound (thestate : State.state_index) (astate : State.state_index) : unit =
 								cyclecount <- cyclecount + 1;
 								if (options#counterex = true) then
@@ -849,9 +849,8 @@ class algoNDFS =
 								processed_blue <- processed_blue + 1;
 								table_add cyan astate;
 								printtable "Cyan" cyan;
-								(*** WARNING (ÉA, 2019/07/11): this statement is a bit strange with unit type ***)
-								let _ = self#post_from_one_state astate in ();
-								() in
+								find_or_compute_successors astate
+							in
 							let cyclefound (thestate : State.state_index) (astate : State.state_index) : unit =
 								cyclecount <- cyclecount + 1;
 								if (options#counterex = true) then
