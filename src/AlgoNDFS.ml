@@ -120,6 +120,7 @@ class algoNDFS =
 		(************************************)
 		let cyan = Hashtbl.create 100 in
 		let blue = Hashtbl.create 100 in
+		let green = Hashtbl.create 100 in
 		let red = Hashtbl.create 100 in
 		let pending = ref [] in (* used in the layered algorithms *)
 
@@ -383,8 +384,22 @@ class algoNDFS =
 		(*******************************************************)
 		let find_or_compute_successors thestate =
 			let successors = hashtbl_get_or_default (StateSpace.get_transitions_table state_space) thestate [] in
-			if successors = [] then (self#post_from_one_state thestate; ())
-			else ();
+			if successors = [] then (let _ = self#post_from_one_state thestate in ())
+			else ()
+		in
+
+		(***************************************************************************)
+		(* Mark a state blue if deadlock or no successor is green, green otherwise *)
+		(***************************************************************************)
+		let mark_blue_or_green thestate =
+			let successors = StateSpace.get_successors state_space thestate 
+				and is_green astate = table_test green astate
+			in
+			if (successors = [] || not (List.exists is_green successors)) then(
+				table_add blue thestate;
+				printtable "Blue" blue
+			) else (table_add green thestate;
+				printtable "Green" green)
 		in
 
 		(***************************)
@@ -449,9 +464,10 @@ class algoNDFS =
 							if (testaltdfs thestate suc_id) then (alternativedfs suc_id thestate_depth)
 							else 
 							if (testrecursivedfs suc_id) then (
-								rundfs enterdfs predfs lookahead cyclefound filterdfs testaltdfs alternativedfs testrecursivedfs postdfs suc_id (thestate_depth + 1))
+								rundfs enterdfs predfs lookahead cyclefound filterdfs testaltdfs alternativedfs testrecursivedfs postdfs suc_id (thestate_depth + 1)
+							)
 						);
-						process_sucs body;
+						process_sucs body
 				in
 				let cyclestate, found = lookahead successors in
 				(* if the cycle is found:
@@ -459,11 +475,13 @@ class algoNDFS =
 					- in the collecting version, the other sucessors cannot lead to a better zone,
 						so there is no need to process them.
 						However, the state must be marked blue and removed from cyan in the blue dfs *)
-				if (found) then 
+				if (found) then
 					cyclefound thestate cyclestate
 				else (process_sucs successors;
 					postdfs thestate thestate_depth)
-			))
+			) else (* thestate is not explored because it is either too deep or covered by the constraint already *)
+				if not depth_ok then table_add green thestate
+		)
 		in
 
 		(*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*)
@@ -491,8 +509,9 @@ class algoNDFS =
 				print_message Verbose_standard("---------------- until depth " ^ (string_of_int current_depth) ^ " ----------------");
 				(* Clear the colours of previous iteration *)
 				Hashtbl.clear cyan;
-				Hashtbl.clear blue;
-				Hashtbl.clear red
+				Hashtbl.clear green; (* We keep the blue states from the previous run*)
+				Hashtbl.clear red;
+				depth_reached <- false;
 			);
 
 			begin
@@ -539,7 +558,7 @@ class algoNDFS =
 						table_rem cyan thestate;
 					in
 					let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
-						not (table_test blue astate) && not (table_test cyan astate)
+						not (table_test blue astate) && not (table_test green astate) && not (table_test cyan astate)
 					in
 					let testaltdfs (thestate : State.state_index) (astate : State.state_index) : bool =
 						false in
@@ -590,8 +609,7 @@ class algoNDFS =
 								() in					
 							rundfs enterdfs predfs noLookahead cyclefound filterdfs testaltdfs alternativedfs testrecursivedfs postdfs astate astate_depth
 						);
-						table_add blue astate;
-						printtable "Blue" blue;
+						mark_blue_or_green astate;
 						table_rem cyan astate;
 						in
 					(try (rundfs enterdfs predfs withLookahead cyclefound filterdfs testaltdfs alternativedfs testrecursivedfs postdfs init_state_index 0;)
@@ -641,7 +659,10 @@ class algoNDFS =
 						table_rem cyan thestate;
 					in
 					let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
-						not (table_test blue astate) && not (table_test cyan astate) && not (setsubsumes red astate)
+						not (table_test blue astate) &&
+						not (table_test green astate) &&
+						not (table_test cyan astate) &&
+						not (setsubsumes red astate)
 					in
 					let testaltdfs (thestate : State.state_index) (astate : State.state_index) : bool =
 						false in
@@ -695,8 +716,7 @@ class algoNDFS =
 								() in					
 							rundfs enterdfs predfs noLookahead cyclefound filterdfs testaltdfs alternativedfs testrecursivedfs postdfs astate astate_depth
 						);
-						table_add blue astate;
-						printtable "Blue" blue;
+						mark_blue_or_green astate;
 						table_rem cyan astate;
 						in
 					(try (rundfs enterdfs predfs withLookahead cyclefound filterdfs testaltdfs alternativedfs testrecursivedfs postdfs init_state_index 0;)
@@ -715,7 +735,7 @@ class algoNDFS =
 							print_message Verbose_low ("Popped state "
 								^ (string_of_int thestate));
 							printpendingqueue "Pending" !pending;
-							if (not (table_test blue thestate)) then
+							if (not (table_test blue thestate) && not (table_test green thestate)) then
 							begin 
 							let enterdfs (astate : State.state_index) : bool =
 								if (options#counterex = false && check_parameter_leq_list astate) then (
@@ -757,7 +777,7 @@ class algoNDFS =
 								table_rem cyan thestate;
 							in
 							let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
-								not (table_test blue astate) && not (table_test cyan astate)
+								not (table_test blue astate) && not (table_test green astate) && not (table_test cyan astate)
 							in
 							let testaltdfs (thestate : State.state_index) (astate : State.state_index) : bool =
 								not (same_parameter_projection thestate astate)
@@ -812,8 +832,7 @@ class algoNDFS =
 										() in					
 									rundfs enterdfs predfs noLookahead cyclefound filterdfs testaltdfs alternativedfs testrecursivedfs postdfs astate astate_depth
 								);
-								table_add blue astate;
-								printtable "Blue" blue;
+								mark_blue_or_green astate;
 								table_rem cyan astate;
 								in
 							rundfs enterdfs predfs withLookahead cyclefound filterdfs testaltdfs alternativedfs testrecursivedfs postdfs thestate thestate_depth;
@@ -835,7 +854,7 @@ class algoNDFS =
 							print_message Verbose_low ("Popped state "
 								^ (string_of_int thestate));
 							printpendingqueue "Pending" !pending;
-							if (not (table_test blue thestate)) then
+							if (not (table_test blue thestate) && not (table_test green thestate)) then
 							begin 
 							let enterdfs (astate : State.state_index) : bool =
 								if (options#counterex = false && check_parameter_leq_list astate) then (
@@ -878,6 +897,7 @@ class algoNDFS =
 							in
 							let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
 								not (table_test blue astate) &&
+								not (table_test green astate) &&
 								not (table_test cyan astate) &&
 								not (layersetsubsumes red astate)
 							in
@@ -934,8 +954,7 @@ class algoNDFS =
 										() in					
 									rundfs enterdfs predfs noLookahead cyclefound filterdfs testaltdfs alternativedfs testrecursivedfs postdfs astate astate_depth
 								);
-								table_add blue astate;
-								printtable "Blue" blue;
+								mark_blue_or_green astate;
 								table_rem cyan astate;
 								in
 							rundfs enterdfs predfs withLookahead cyclefound filterdfs testaltdfs alternativedfs testrecursivedfs postdfs thestate thestate_depth;
@@ -952,6 +971,9 @@ class algoNDFS =
 			constraint_valuations <- Some !collected_constr;
 
 			print_message Verbose_standard("---------------- Ending exploration ------------------");
+
+			if not depth_reached then (print_message Verbose_standard "DEPTH OK"; execute_again <- false)
+		else print_message Verbose_standard "NOK NOK NOK NOK";
 
 			if execute_again then(
 				ResultProcessor.process_result self#compute_result "Iterative deepening" None;
