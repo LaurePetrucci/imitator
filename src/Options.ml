@@ -207,6 +207,9 @@ class imitator_options =
 		(* Pre-compute pi0 ? (in PaTATOR mode only) *)
 		val mutable precomputepi0 = ref false
 		
+		(* process again green states *)
+		val mutable recompute_green = ref false
+		
 		(* limit number of states *)
 		val mutable states_limit = ref None
 		
@@ -329,6 +332,7 @@ class imitator_options =
 		method pta2png = !pta2png
 		method pta2tikz = !pta2tikz
 		method pta2uppaal = !pta2uppaal
+		method recompute_green = !recompute_green
 		method second_file_name = second_file_name
 		method states_limit = !states_limit
 		method statistics = !statistics
@@ -900,7 +904,8 @@ class imitator_options =
 				("-PTA2TikZ", Unit (fun _ -> pta2tikz := true; imitator_mode <- Translation), "Translate the model into LaTeX TikZ code (no positioning yet), and exit without performing any analysis. Defaut : 'false'");
 				
 				("-PTA2Uppaal", Unit (fun _ -> pta2uppaal := true; imitator_mode <- Translation), "Translate the model into an Uppaal model, and exit without performing any analysis. Some features may not be translated, see user manual. Defaut : 'false'");
-				
+
+				("-recompute-green", Set recompute_green, " In NDFS, process green states again if found at a lower depth. Default: false.");
 				(* Hidden option (April fool 2017) *)
 				(*** NOTE: "Beware: options that have an empty doc string will not be included in the list." ***)
 				("-romeo", Unit call_romeo, "");
@@ -1363,6 +1368,11 @@ class imitator_options =
 				print_message Verbose_standard ("No lookahead in NDFS search.")
 			else
 				print_message Verbose_medium ("Lookahead for succesors closing accepting cycles in NDFS (default).");
+
+			if !recompute_green then
+				print_message Verbose_standard ("Re-processing green states in NDFS.")
+			else
+				print_message Verbose_medium ("No reprocessing of green states in NDFS (default).");
 
 (* 			if !no_pending_ordered then
 				print_message Verbose_standard ("No ordering of pending list with larger zones first in NDFS synthesis.")

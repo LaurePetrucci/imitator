@@ -27,6 +27,7 @@ open Result
 open AlgoStateBased
 open State
 open Statistics
+module IntMap = Map.Make(struct type t = int let compare = compare end)
 
 (************************************************************)
 (************************************************************)
@@ -124,6 +125,7 @@ class algoNDFS =
 		let cyan = Hashtbl.create 100 in
 		let blue = Hashtbl.create 100 in
 		let green = Hashtbl.create 100 in
+		let greendepth = ref IntMap.empty in
 		let red = Hashtbl.create 100 in
 		let pending = ref [] in (* used in the layered algorithms *)
 
@@ -391,21 +393,42 @@ class algoNDFS =
 			else ()
 		in
 
-		(***************************************************************************)
-		(* Mark a state blue if deadlock or no successor is green, green otherwise *)
-		(***************************************************************************)
-		let mark_blue_or_green thestate =
+		(***********************************************************)
+		(* Mark a state blue if deadlock or no successor is green, *)
+		(* Otherwise mark green and associate the depth in the map *)
+		(***********************************************************)
+		let mark_blue_or_green thestate thedepth =
 			(* mark only if not blue due to lookahead *)
 			if not (table_test blue thestate) then(
 				let successors = StateSpace.get_successors state_space thestate 
 					and is_green astate = table_test green astate
 				in
-				if (successors = [] || not (List.exists is_green successors)) then(
+				if (successors = [] || not (List.exists is_green successors)) then (
 					table_add blue thestate;
 					printtable "Blue" blue
 				) else (table_add green thestate;
+					greendepth := IntMap.add thestate thedepth !greendepth;
 					printtable "Green" green)
 			)
+		in
+
+		(***********************************************)
+		(* Test if a green state should be re-explored *)
+		(***********************************************)
+		let test_reexplore_green thestate thedepth =
+			print_message Verbose_high ("?? re-explore state " ^ (string_of_int thestate));
+			printtable "Green" green;
+			if not (table_test green thestate)
+			then true
+			else( (* it is green => check the depth if recomputation is required *)
+(* 				let print_depth astate adepth = print_string ("(" ^ (string_of_int astate) ^ "," ^ (string_of_int adepth)) in
+				print_message Verbose_high (IntMap.iter print_depth !greendepth);
+ *)				if options#recompute_green &&
+				(IntMap.find thestate !greendepth) < thedepth
+				then( (* the reexplored state must also be removed from previous red exploration *)
+					table_rem red thestate;
+					true
+				) else false)
 		in
 
 		(***************************)
@@ -466,7 +489,7 @@ class algoNDFS =
 							^ "successor "
 							^ (ModelPrinter.string_of_state model
 								(StateSpace.get_state state_space suc_id)));				
-						if (filterdfs thestate suc_id) then (
+						if (filterdfs thestate suc_id (thestate_depth + 1)) then (
 							if (testaltdfs thestate suc_id) then (alternativedfs suc_id thestate_depth)
 							else 
 							if (testrecursivedfs suc_id) then (
@@ -486,7 +509,11 @@ class algoNDFS =
 				else (process_sucs successors;
 					postdfs thestate thestate_depth)
 			) else (* thestate is not explored because it is either too deep or covered by the constraint already *)
-				if not depth_ok then table_add green thestate
+				if not depth_ok then (
+					table_add green thestate;
+					greendepth := IntMap.add thestate thestate_depth !greendepth;
+					()
+				)
 		)
 		in
 
@@ -516,6 +543,7 @@ class algoNDFS =
 				(* Clear the colours of previous iteration *)
 				Hashtbl.clear cyan;
 				Hashtbl.clear green; (* We keep the blue states from the previous run*)
+				greendepth := IntMap.empty;
 				processed_blue <- 0;
 				cyclecount <-0;
 				Hashtbl.clear red;
@@ -566,8 +594,11 @@ class algoNDFS =
 						(* and the current state is popped from the cyan list *)
 						table_rem cyan thestate;
 					in
-					let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
-						not (table_test blue astate) && not (table_test green astate) && not (table_test cyan astate)
+					let filterdfs (thestate : State.state_index) (astate : State.state_index) 
+						(astate_depth : int) : bool =
+						not (table_test blue astate) &&
+						test_reexplore_green astate astate_depth &&
+						not (table_test cyan astate)
 					in
 					let testaltdfs (thestate : State.state_index) (astate : State.state_index) : bool =
 						false in
@@ -603,7 +634,7 @@ class algoNDFS =
 								collected_constr :=	LinearConstraint.p_nnconvex_constraint_of_p_linear_constraints !constraint_list;
 								if (options#counterex = true) then raise TerminateAnalysis;
 							in
-							let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
+							let filterdfs (thestate : State.state_index) (astate : State.state_index) (astate_depth : int) : bool =
 								true in
 							let testaltdfs (thestate : State.state_index) (astate : State.state_index) : bool =
 								(table_test cyan astate)
@@ -618,7 +649,7 @@ class algoNDFS =
 								() in					
 							rundfs enterdfs predfs noLookahead cyclefound filterdfs testaltdfs alternativedfs testrecursivedfs postdfs astate astate_depth
 						);
-						mark_blue_or_green astate;
+						mark_blue_or_green astate astate_depth;
 						table_rem cyan astate;
 						in
 					(try (rundfs enterdfs predfs withLookahead cyclefound filterdfs testaltdfs alternativedfs testrecursivedfs postdfs init_state_index 0;)
@@ -668,9 +699,9 @@ class algoNDFS =
 						(* and the current state is popped from the cyan list *)
 						table_rem cyan thestate;
 					in
-					let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
+					let filterdfs (thestate : State.state_index) (astate : State.state_index) (astate_depth : int) : bool =
 						not (table_test blue astate) &&
-						not (table_test green astate) &&
+						test_reexplore_green astate astate_depth &&
 						not (table_test cyan astate) &&
 						not (setsubsumes red astate)
 					in
@@ -710,7 +741,7 @@ class algoNDFS =
 								collected_constr :=	LinearConstraint.p_nnconvex_constraint_of_p_linear_constraints !constraint_list;
 								if (options#counterex = true) then raise TerminateAnalysis;
 							in
-							let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
+							let filterdfs (thestate : State.state_index) (astate : State.state_index) (astate_depth : int) : bool =
 								(same_parameter_projection thestate astate)
 							in
 							let testaltdfs (thestate : State.state_index) (astate : State.state_index) : bool =
@@ -726,7 +757,7 @@ class algoNDFS =
 								() in					
 							rundfs enterdfs predfs noLookahead cyclefound filterdfs testaltdfs alternativedfs testrecursivedfs postdfs astate astate_depth
 						);
-						mark_blue_or_green astate;
+						mark_blue_or_green astate astate_depth;
 						table_rem cyan astate;
 						in
 					(try (rundfs enterdfs predfs withLookahead cyclefound filterdfs testaltdfs alternativedfs testrecursivedfs postdfs init_state_index 0;)
@@ -745,7 +776,8 @@ class algoNDFS =
 							print_message Verbose_low ("Popped state "
 								^ (string_of_int thestate));
 							printpendingqueue "Pending" !pending;
-							if (not (table_test blue thestate) && not (table_test green thestate)) then
+							if (not (table_test blue thestate) &&
+								test_reexplore_green thestate thestate_depth) then
 							begin 
 							let enterdfs (astate : State.state_index) : bool =
 								if (options#counterex = false && check_parameter_leq_list astate) then (
@@ -787,8 +819,10 @@ class algoNDFS =
 								(* and the current state is popped from the cyan list *)
 								table_rem cyan thestate;
 							in
-							let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
-								not (table_test blue astate) && not (table_test green astate) && not (table_test cyan astate)
+							let filterdfs (thestate : State.state_index) (astate : State.state_index) (astate_depth : int) : bool =
+								not (table_test blue astate) &&
+								test_reexplore_green astate astate_depth &&
+								not (table_test cyan astate)
 							in
 							let testaltdfs (thestate : State.state_index) (astate : State.state_index) : bool =
 								not (same_parameter_projection thestate astate)
@@ -827,7 +861,7 @@ class algoNDFS =
 										collected_constr :=	LinearConstraint.p_nnconvex_constraint_of_p_linear_constraints !constraint_list;
 									if (options#counterex = true) then raise TerminateAnalysis;
 									in
-									let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
+									let filterdfs (thestate : State.state_index) (astate : State.state_index) (astate_depth : int) : bool =
 										(same_parameter_projection thestate astate)
 									in
 									let testaltdfs (thestate : State.state_index) (astate : State.state_index) : bool =
@@ -843,7 +877,7 @@ class algoNDFS =
 										() in					
 									rundfs enterdfs predfs noLookahead cyclefound filterdfs testaltdfs alternativedfs testrecursivedfs postdfs astate astate_depth
 								);
-								mark_blue_or_green astate;
+								mark_blue_or_green astate astate_depth;
 								table_rem cyan astate;
 								in
 							rundfs enterdfs predfs withLookahead cyclefound filterdfs testaltdfs alternativedfs testrecursivedfs postdfs thestate thestate_depth;
@@ -865,7 +899,8 @@ class algoNDFS =
 							print_message Verbose_low ("Popped state "
 								^ (string_of_int thestate));
 							printpendingqueue "Pending" !pending;
-							if (not (table_test blue thestate) && not (table_test green thestate)) then
+							if (not (table_test blue thestate) && 
+								test_reexplore_green thestate thestate_depth) then
 							begin 
 							let enterdfs (astate : State.state_index) : bool =
 								if (options#counterex = false && check_parameter_leq_list astate) then (
@@ -907,9 +942,9 @@ class algoNDFS =
 								(* and the current state is popped from the cyan list *)
 								table_rem cyan thestate;
 							in
-							let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
+							let filterdfs (thestate : State.state_index) (astate : State.state_index) (astate_depth : int) : bool =
 								not (table_test blue astate) &&
-								not (table_test green astate) &&
+								test_reexplore_green astate astate_depth &&
 								not (table_test cyan astate) &&
 								not (layersetsubsumes red astate)
 							in
@@ -950,7 +985,7 @@ class algoNDFS =
 										collected_constr :=	LinearConstraint.p_nnconvex_constraint_of_p_linear_constraints !constraint_list;
 									if (options#counterex = true) then raise TerminateAnalysis;
 									in
-									let filterdfs (thestate : State.state_index) (astate : State.state_index) : bool =
+									let filterdfs (thestate : State.state_index) (astate : State.state_index) (astate_depth : int) : bool =
 										(same_parameter_projection thestate astate)
 									in
 									let testaltdfs (thestate : State.state_index) (astate : State.state_index) : bool =
@@ -966,7 +1001,7 @@ class algoNDFS =
 										() in					
 									rundfs enterdfs predfs noLookahead cyclefound filterdfs testaltdfs alternativedfs testrecursivedfs postdfs astate astate_depth
 								);
-								mark_blue_or_green astate;
+								mark_blue_or_green astate astate_depth;
 								table_rem cyan astate;
 								in
 							rundfs enterdfs predfs withLookahead cyclefound filterdfs testaltdfs alternativedfs testrecursivedfs postdfs thestate thestate_depth;

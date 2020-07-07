@@ -91,6 +91,7 @@ class imitator_options :
 		method pta2png : bool
 		method pta2tikz : bool
 		method pta2uppaal : bool
+		method recompute_green : bool
 		method second_file_name : string
 		method states_limit : int option
 		method statistics : bool
