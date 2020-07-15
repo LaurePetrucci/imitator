@@ -370,19 +370,31 @@ class algoNDFS =
 		(***********************************)
 		(* Function to perform a lookahead *)
 		(***********************************)
-		let withLookahead thesuccessors = 
+		let withLookahead astate thesuccessors = 
 			if not options#no_lookahead then (
-				try ((List.find (fun suc_id ->
-					(State.is_accepting (StateSpace.get_state state_space suc_id)) &&
-				(table_test cyan suc_id)) thesuccessors), true)
-				with Not_found -> init_state_index, false
+				if (State.is_accepting (StateSpace.get_state
+						state_space astate)) then (
+					(* accepting state: find cyan successor *)
+					try ((List.find (fun suc_id ->
+						(table_test cyan suc_id)) thesuccessors),
+							true)
+					with Not_found -> init_state_index, false
+				) else (
+					(* Not accepting state: find accepting cyan
+						successor *)
+					try ((List.find (fun suc_id ->
+						(State.is_accepting (StateSpace.get_state state_space suc_id)) &&
+						(table_test cyan suc_id)) thesuccessors),
+							true)
+					with Not_found -> init_state_index, false
+				)
 			) else init_state_index, false
 		in
 
 		(*****************************)
 		(* Function for no lookahead *)
 		(*****************************)
-		let noLookahead thesuccessors = init_state_index, false in
+		let noLookahead astate thesuccessors = init_state_index, false in
 
 		(*******************************************************)
 		(* Function for generating successors only when needed *)
@@ -505,7 +517,8 @@ class algoNDFS =
 						);
 						process_sucs body
 				in
-				let cyclestate, found = lookahead successors in
+				let cyclestate, found =
+						lookahead thestate successors in
 				(* if the cycle is found:
 					- in the standard version, an exception is raised and the algorithm terminates
 					- in the collecting version, the other sucessors cannot lead to a better zone,
@@ -596,7 +609,7 @@ class algoNDFS =
 						constraint_list := (LinearConstraint.px_hide_nonparameters_and_collapse state_constr)::(!constraint_list);
 						collected_constr :=	LinearConstraint.p_nnconvex_constraint_of_p_linear_constraints !constraint_list;
 						if (options#counterex = true) then raise TerminateAnalysis;
-						table_add blue astate;
+						(* table_add blue astate; *)
 						table_add blue thestate;
 						printtable "Blue" blue;
 						(* and the current state is popped from the cyan list *)
@@ -701,7 +714,7 @@ class algoNDFS =
 						collected_constr :=	LinearConstraint.p_nnconvex_constraint_of_p_linear_constraints !constraint_list;
 						if (options#counterex = true) then raise TerminateAnalysis;
 						(* the state where the lookahead has found a cycle is now set blue *)
-						table_add blue astate;
+						(* table_add blue astate; *)
 						table_add blue thestate;
 						printtable "Blue" blue;
 						(* and the current state is popped from the cyan list *)
@@ -821,7 +834,7 @@ class algoNDFS =
 								collected_constr :=	LinearConstraint.p_nnconvex_constraint_of_p_linear_constraints !constraint_list;
 								if (options#counterex = true) then raise TerminateAnalysis;
 								(* the state where the lookahead has found a cycle is now set blue *)
-								table_add blue astate;
+								(* table_add blue astate; *)
 								table_add blue thestate;
 								printtable "Blue" blue;
 								(* and the current state is popped from the cyan list *)
@@ -944,7 +957,7 @@ class algoNDFS =
 								collected_constr :=	LinearConstraint.p_nnconvex_constraint_of_p_linear_constraints !constraint_list;
 								if (options#counterex = true) then raise TerminateAnalysis;
 								(* the state where the lookahead has found a cycle is now set blue *)
-								table_add blue astate;
+								(* table_add blue astate; *)
 								table_add blue thestate;
 								printtable "Blue" blue;
 								(* and the current state is popped from the cyan list *)
