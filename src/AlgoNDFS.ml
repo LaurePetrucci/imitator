@@ -302,6 +302,13 @@ class algoNDFS =
 			pending := add_ordered (astate_index,astate_depth) !pending before_pair;
 			printpendingqueue "Pending (state added)" !pending
         in
+        let is_pending astate =
+			match !pending with
+			| [] -> false
+			| (thestate,_)::body ->
+				if (astate = thestate) then true
+			else false
+		in
 
 		(**********************************)
 		(* Check the subsumption relation *)
@@ -414,10 +421,16 @@ class algoNDFS =
 			if not (table_test blue thestate) then(
 				let successors = StateSpace.get_successors state_space thestate 
 					and is_green astate = table_test green astate
+					and is_pending_not_blue astate =
+						(is_pending astate) &&
+						not (table_test blue astate)
 				in
-				if (successors = [] || not (List.exists is_green successors)) then (
+				if (successors = [] ||
+						(not (List.exists is_green successors) &&
+							(!pending = [] ||
+								not (List.exists is_pending_not_blue successors)))) then (
 					table_add blue thestate;
-					printtable "Blue" blue
+					printtable "Blue (mark_blue_or_green)" blue
 				) else (
 					if options#recompute_green &&
 						(not (is_green thestate) ||
@@ -426,7 +439,7 @@ class algoNDFS =
 						table_add green thestate;
 						greendepth := IntMap.add thestate thedepth !greendepth
 					) else table_add green thestate;
-					printtable "Green" green)
+					printtable "Green (mark_blue_or_green)" green)
 			)
 		in
 
@@ -435,7 +448,7 @@ class algoNDFS =
 		(***********************************************)
 		let test_reexplore_green thestate thedepth =
 			print_message Verbose_high ("?? re-explore state " ^ (string_of_int thestate));
-			printtable "Green" green;
+			printtable "Green (test_reexplore_green)" green;
 			if not (table_test green thestate)
 			then true
 			else( (* it is green => check the depth if recomputation is required *)
@@ -581,13 +594,13 @@ class algoNDFS =
 						if (options#counterex = false &&
 								check_parameter_leq_list astate) then (
 							table_add blue astate;
-							printtable "Blue" blue;
+							printtable "Blue (enterdfs)" blue;
 							false
 						) else true in
 					let predfs (astate : State.state_index) : unit =
 						processed_blue <- processed_blue + 1;
 						table_add cyan astate;
-						printtable "Cyan" cyan;
+						printtable "Cyan (predfs)" cyan;
 						find_or_compute_successors astate
 					in
 					let cyclefound (thestate : State.state_index) (astate : State.state_index) : unit =
@@ -611,7 +624,7 @@ class algoNDFS =
 						if (options#counterex = true) then raise TerminateAnalysis;
 						(* table_add blue astate; *)
 						table_add blue thestate;
-						printtable "Blue" blue;
+						printtable "Blue (cyclefound)" blue;
 						(* and the current state is popped from the cyan list *)
 						table_rem cyan thestate;
 					in
@@ -636,7 +649,7 @@ class algoNDFS =
 								not (check_parameter_leq_list astate) in
 							let predfs (astate : State.state_index) : unit =
 								table_add red astate;
-								printtable "Red" red in
+								printtable "Red (predfs)" red in
 							let cyclefound (thestate : State.state_index) (astate : State.state_index) : unit =
 								cyclecount <- cyclecount + 1;
 								if (options#counterex = true) then
@@ -684,14 +697,14 @@ class algoNDFS =
 						if (options#counterex = false && check_parameter_leq_list astate) then (
 							(* State astate has been handled and must now become blue *)
 							table_add blue astate;
-							printtable "Blue" blue;
+							printtable "Blue (enterdfs)" blue;
 							false
 						) else true
 					in
 					let predfs (astate : State.state_index) : unit =
 						processed_blue <- processed_blue + 1;
 						table_add cyan astate;
-						printtable "Cyan" cyan;
+						printtable "Cyan (predfs)" cyan;
 						find_or_compute_successors astate
 					in
 					let cyclefound (thestate : State.state_index) (astate : State.state_index) : unit =
@@ -716,7 +729,7 @@ class algoNDFS =
 						(* the state where the lookahead has found a cycle is now set blue *)
 						(* table_add blue astate; *)
 						table_add blue thestate;
-						printtable "Blue" blue;
+						printtable "Blue (cyclefound)" blue;
 						(* and the current state is popped from the cyan list *)
 						table_rem cyan thestate;
 					in
@@ -741,7 +754,7 @@ class algoNDFS =
 								not (check_parameter_leq_list astate) in
 							let predfs (astate: State.state_index) : unit =
 								table_add red astate;
-								printtable "Red" red in
+								printtable "Red (predfs)" red in
 							let cyclefound (thestate : State.state_index) (astate : State.state_index) : unit =
 								cyclecount <- cyclecount + 1;
 								if (options#counterex = true) then
@@ -804,14 +817,14 @@ class algoNDFS =
 								if (options#counterex = false && check_parameter_leq_list astate) then (
 									(* State astate has been handled and must now become blue *)
 									table_add blue astate;
-									printtable "Blue" blue;
+									printtable "Blue (enterdfs)" blue;
 									false
 								) else true
 							in
 							let predfs (astate : State.state_index) : unit =
 								processed_blue <- processed_blue + 1;
 								table_add cyan astate;
-								printtable "Cyan" cyan;
+								printtable "Cyan (preds)" cyan;
 								find_or_compute_successors astate
 							in
 							let cyclefound (thestate : State.state_index) (astate : State.state_index) : unit =
@@ -836,7 +849,7 @@ class algoNDFS =
 								(* the state where the lookahead has found a cycle is now set blue *)
 								(* table_add blue astate; *)
 								table_add blue thestate;
-								printtable "Blue" blue;
+								printtable "Blue (cyclecount)" blue;
 								(* and the current state is popped from the cyan list *)
 								table_rem cyan thestate;
 							in
@@ -861,7 +874,7 @@ class algoNDFS =
 										not (check_parameter_leq_list astate) in
 									let predfs (astate: State.state_index) : unit =
 										table_add red astate;
-										printtable "Red" red in
+										printtable "Red (predfs)" red in
 									let cyclefound (thestate : State.state_index) (astate : State.state_index) : unit =
 										cyclecount <- cyclecount + 1;
 										if (options#counterex = true) then
@@ -927,14 +940,14 @@ class algoNDFS =
 								if (options#counterex = false && check_parameter_leq_list astate) then (
 									(* State astate has been handled and must now become blue *)
 									table_add blue astate;
-									printtable "Blue" blue;
+									printtable "Blue (enterdfs)" blue;
 									false
 								) else true
 							in
 							let predfs (astate : State.state_index) : unit =
 								processed_blue <- processed_blue + 1;
 								table_add cyan astate;
-								printtable "Cyan" cyan;
+								printtable "Cyan (predfs)" cyan;
 								find_or_compute_successors astate
 							in
 							let cyclefound (thestate : State.state_index) (astate : State.state_index) : unit =
@@ -959,7 +972,7 @@ class algoNDFS =
 								(* the state where the lookahead has found a cycle is now set blue *)
 								(* table_add blue astate; *)
 								table_add blue thestate;
-								printtable "Blue" blue;
+								printtable "Blue (cyclecount)" blue;
 								(* and the current state is popped from the cyan list *)
 								table_rem cyan thestate;
 							in
@@ -985,7 +998,7 @@ class algoNDFS =
 										not (check_parameter_leq_list astate) in
 									let predfs (astate: State.state_index) : unit =
 										table_add red astate;
-										printtable "Red" red in
+										printtable "Red (predfs)" red in
 									let cyclefound (thestate : State.state_index) (astate : State.state_index) : unit =
 										cyclecount <- cyclecount + 1;
 										if (options#counterex = true) then
@@ -1042,10 +1055,10 @@ class algoNDFS =
 
 			if not depth_reached then execute_again <- false;
 
-			printtable "Blue" blue;
-			printtable "Green" green;
-			printtable "Cyan" cyan;
-			printtable "Red" red;
+			printtable "Blue (end while depth)" blue;
+			printtable "Green (end while depth)" green;
+			printtable "Cyan (end while depth)" cyan;
+			printtable "Red (end while depth)" red;
 
 			total_processed_blue <- total_processed_blue + processed_blue;
 			total_cyclecount <- total_cyclecount + cyclecount;
